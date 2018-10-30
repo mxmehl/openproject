@@ -36,14 +36,8 @@ import {WorkPackageCollectionResource} from 'core-app/modules/hal/resources/wp-c
 
 export abstract class WorkPackageTableBaseService<T> {
 
-  constructor(readonly querySpace:IsolatedQuerySpace) {
+  constructor(protected readonly querySpace:IsolatedQuerySpace) {
   }
-
-  /**
-   * Return the state this service cares for from the table state.
-   * @returns {InputState<T>}
-   */
-  public abstract get state():InputState<T>;
 
   /**
    * Get the state value from the current query.
@@ -77,28 +71,59 @@ export abstract class WorkPackageTableBaseService<T> {
   }
 
   public onReady() {
-    return this.state.values$()
+    return this.state.changes$()
       .pipe(
         take(1),
         mapTo(null)
       )
       .toPromise();
   }
+
+
+  /**
+   * Return the state this service cares for from the table state.
+   * @returns {InputState<T>}
+   */
+  protected abstract get state():InputState<T>;
+
+  /**
+   * Return a public read-only state
+   */
+public get readonlyState():State<T> {
+    return this.state;
+  }
+
+  /**
+   * Helper to set the value of the current state
+   * @param val
+   */
+  protected set current(val:T|undefined) {
+    if (val) {
+      this.state.putValue(val);
+    } else {
+      this.state.clear();
+    }
+  }
+
+  /**
+   * Get the value of the current state, if any.
+   */
+  protected get current():T|undefined {
+    return this.state.value;
+  }
 }
 
-export interface WorkPackageQueryStateService {
+export abstract class WorkPackageQueryStateService<T> extends WorkPackageTableBaseService<T> {
   /**
    * Check whether the state value does not match the query resource's value.
    * @param query The current query resource
    */
-  hasChanged(query:QueryResource):boolean;
+  abstract hasChanged(query:QueryResource):boolean;
 
   /**
    * Apply the current state value to query
    *
    * @return Whether the query should be visibly updated.
    */
-  applyToQuery(query:QueryResource):boolean;
-
-  state:State<any>;
+  abstract applyToQuery(query:QueryResource):boolean;
 }

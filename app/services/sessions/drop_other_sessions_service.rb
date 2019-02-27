@@ -1,4 +1,5 @@
 #-- encoding: UTF-8
+
 #-- copyright
 # OpenProject is a project management system.
 # Copyright (C) 2012-2018 the OpenProject Foundation (OPF)
@@ -26,35 +27,24 @@
 #
 # See docs/COPYRIGHT.rdoc for more details.
 #++
+require_relative './base_service'
 
-module Users
-  class UpdateService
-    attr_accessor :current_user
+module Sessions
+  class DropOtherSessionsService < BaseService
+    class << self
+      ##
+      # Drop all other sessions for the current user.
+      # This can only be done when active record sessions are used.
+      def call(user, session)
+        return false unless active_record_sessions?
 
-    def initialize(current_user:)
-      @current_user = current_user
-    end
+        ::UserSession
+          .where(user_id: user.id)
+          .where.not(session_id: session.id)
+          .delete_all
 
-    def call(permitted_params, params)
-      User.execute_as current_user do
-        set_attributes(permitted_params, params)
+        true
       end
-    end
-
-    private
-
-    def set_attributes(permitted_params, params)
-        current_user.attributes = permitted_params.user
-        current_user.pref.attributes = if params[:pref].present?
-                                         permitted_params.pref
-                                       else
-                                         {}
-                                       end
-
-        if current_user.save
-          success = current_user.pref.save
-          ServiceResult.new(success: success, errors: current_user.errors, result: current_user)
-        end
     end
   end
 end
